@@ -98,19 +98,28 @@ With no microphone plugged in, the face shows "Plug in a USB microphone" and kee
 
 ## Updating
 
-When there's new code:
+The easiest way is to copy the new zip straight to the Pi, which keeps hidden files like `.gitignore` and the file permissions:
 
-```bash
-cd ~/pi-buddy && git pull
-```
+1. On your computer, open a terminal (PowerShell on Windows) in the folder where the zip was downloaded, and run:
+   ```bash
+   scp pi-buddy-full.zip djk8286@pibuddy.local:~
+   ```
+2. On the Pi:
+   ```bash
+   cd ~ && unzip -o pi-buddy-full.zip && cd pi-buddy
+   git status --short          # should show only code files, never .env / data / voices
+   git add -A && git commit -m "Update" && git push
+   ```
+3. Restart the buddy with `pkill -f buddy.main`. The auto-start relaunches it at the next boot; to start it now, run `./run.sh`.
 
-Then restart the buddy.
+Your `.env`, `config.toml`, memories and voices are never touched by an update.
 
 ## Customizing
 
 | File | What it controls |
 |---|---|
 | `config.toml` | name, Claude model, wake word, voice, timings, captions |
+| `data/settings.json` | things it changed itself, like volume ("turn it down") |
 | `personality.md` | how it talks and behaves (edit freely) |
 | `data/memories/` | its long-term memory: plain text files you can read and edit |
 | `data/history.db` | the log of every conversation |
@@ -152,6 +161,6 @@ Memory files live only on the Pi. What you say is sent to the Claude API to gene
 | It wakes up by itself | Raise `wake_threshold` to 0.6 or 0.7 |
 | It cuts you off mid-sentence | Raise `silence_seconds` to 1.3 |
 | It waits too long after you stop | Lower `silence_seconds`, or reduce background noise such as the fan near the mic |
-| Wrong mic or speaker | Run `source .venv/bin/activate; python -m sounddevice`, then set `input_device` and `output_device` in `config.toml` |
+| Wrong mic or speaker | Run `arecord -L` / `aplay -L` to list devices, then set `input_device` / `output_device` in `config.toml` (e.g. `plughw:2,0`). Blank = system default |
 | Replies are slow | Use `model = "claude-haiku-4-5-20251001"` and `whisper_model = "tiny.en"` |
 | Screen is sideways | Use Screen Configuration in the Pi desktop menu to rotate it |

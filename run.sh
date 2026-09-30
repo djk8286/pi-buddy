@@ -10,11 +10,7 @@ while true; do
     echo "=== starting $(date) ===" >> data/run.log
     python -m buddy.main 2>&1 | tee -a data/run.log
     code=${PIPESTATUS[0]}
-<<<<<<< Updated upstream
     [ "$code" -eq 0 ] && break   # clean exit (Esc / long press) — don't restart
-=======
-    [ "$code" -eq 0 ] && break   # clean exit (Esc / long press) - don't restart
->>>>>>> Stashed changes
     echo "Pi Buddy exited with $code, restarting in 3s..." | tee -a data/run.log
     sleep 3
 done

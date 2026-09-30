@@ -27,6 +27,7 @@ output_device = ""
 
 [ui]
 fullscreen = true
+display = "auto"            # "auto" = the built-in touchscreen; or a number (0, 1) to force a screen
 show_captions = true
 fps = 30
 sleep_after_min = 15        # face gets sleepy after this long with no interaction

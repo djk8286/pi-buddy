@@ -50,8 +50,8 @@ def main():
         from .speech import Voice
 
         v = cfg["voice"]
-        voice = Voice(v.get("piper_voice", "voices/en_US-lessac-medium.onnx"))
-        mouth = Mouth(state, voice, Speaker(state, v.get("output_device")))
+        voice = Voice(v.get("piper_voice", "voices/en_US-joe-medium.onnx"))
+        mouth = Mouth(state, voice, Speaker(state, v.get("output_device"), v.get("volume", 50)))
         _say = mouth.say
 
         def say_and_print(mood, text):

@@ -44,7 +44,7 @@ cat > ~/.config/autostart/pi-buddy.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=Pi Buddy
-Exec=$(pwd)/run.sh
+Exec=bash $(pwd)/run.sh
 X-GNOME-Autostart-enabled=true
 EOF
 chmod +x run.sh
