@@ -11,6 +11,29 @@ from .state import BuddyState
 log = logging.getLogger("main")
 
 
+def wait_for_mic(state, device):
+    """Open the microphone. If none is plugged in, show a friendly message and keep
+    checking every few seconds, so plugging in a USB mic just works (no restart needed)."""
+    import sounddevice as sd
+    from .audio import Mic
+    warned = False
+    while not state.quit_event.is_set():
+        try:
+            return Mic(device)
+        except Exception as e:
+            if not warned:
+                log.warning("No microphone found (%s). Waiting for one to be plugged in...", e)
+                state.set(mode="error", mood="sad", caption="I can't hear anything. Plug in a USB microphone.")
+                warned = True
+            time.sleep(4)
+            try:  # re-scan audio devices so a newly plugged-in mic shows up
+                sd._terminate()
+                sd._initialize()
+            except Exception:
+                pass
+    return None
+
+
 def conversation_loop(cfg, state):
     from .audio import Mic, Speaker, WakeWord
     from .brain import Brain, Mouth
@@ -25,7 +48,9 @@ def conversation_loop(cfg, state):
         state.set(caption="Loading voice...")
         voice = Voice(v.get("piper_voice", "voices/en_US-lessac-medium.onnx"))
         speaker = Speaker(state, v.get("output_device"))
-        mic = Mic(v.get("input_device"))
+        mic = wait_for_mic(state, v.get("input_device"))
+        if mic is None:
+            return
         wake = WakeWord(v.get("wake_word", "hey_jarvis"), float(v.get("wake_threshold", 0.5)))
         mouth = Mouth(state, voice, speaker)
         mouth.start()
