@@ -111,7 +111,6 @@ Then restart the buddy.
 | File | What it controls |
 |---|---|
 | `config.toml` | name, Claude model, wake word, voice, timings, captions |
-| `data/settings.json` | things it changed itself, like volume ("turn it down") |
 | `personality.md` | how it talks and behaves (edit freely) |
 | `data/memories/` | its long-term memory: plain text files you can read and edit |
 | `data/history.db` | the log of every conversation |
@@ -153,6 +152,6 @@ Memory files live only on the Pi. What you say is sent to the Claude API to gene
 | It wakes up by itself | Raise `wake_threshold` to 0.6 or 0.7 |
 | It cuts you off mid-sentence | Raise `silence_seconds` to 1.3 |
 | It waits too long after you stop | Lower `silence_seconds`, or reduce background noise such as the fan near the mic |
-| Wrong mic or speaker | Run `arecord -L` / `aplay -L` to list devices, then set `input_device` / `output_device` in `config.toml` (e.g. `plughw:2,0`). Blank = system default |
+| Wrong mic or speaker | Run `source .venv/bin/activate; python -m sounddevice`, then set `input_device` and `output_device` in `config.toml` |
 | Replies are slow | Use `model = "claude-haiku-4-5-20251001"` and `whisper_model = "tiny.en"` |
 | Screen is sideways | Use Screen Configuration in the Pi desktop menu to rotate it |
