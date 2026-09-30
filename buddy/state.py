@@ -12,6 +12,7 @@ class BuddyState:
         self.mode = "booting"
         self.mood = "neutral"
         self.mouth_level = 0.0      # 0..1, driven by speaker audio
+        self.volume = 50            # 0..100, set from config / settings.json at startup
         self.caption = "Waking up..."
         self.last_interaction = time.time()
         self.tap_event = threading.Event()

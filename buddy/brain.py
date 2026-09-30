@@ -13,6 +13,7 @@ import anthropic
 
 from . import history as history_mod
 from . import memory as memory_mod
+from . import settings as settings_mod
 from .config import load_personality
 from .speech import clean_for_speech
 from .state import MOODS
@@ -106,7 +107,7 @@ class Brain:
         self.keep = int(c.get("history_turns", 20))
         self.timeout = float(c.get("session_timeout_min", 10)) * 60
         self.tz = ZoneInfo(cfg["buddy"].get("timezone", "UTC"))
-        self.tools = [memory_mod.TOOL_SPEC, history_mod.TOOL_SPEC]
+        self.tools = [memory_mod.TOOL_SPEC, history_mod.TOOL_SPEC, settings_mod.VOLUME_TOOL]
         if c.get("web_search", True):
             self.tools.append(WEB_SEARCH_TOOL)
 
@@ -121,6 +122,7 @@ class Brain:
             user=name, memory=self.memory.dump_for_prompt()
         ) + (
             "\nOTHER TOOLS\n- search_history: search older conversations.\n"
+            "- set_volume: make your voice louder or quieter when asked.\n"
             "- web_search (if available): current info like weather, news, hours, prices. "
             "Summarize results in a sentence or two; never read URLs aloud.\n"
         )
@@ -199,4 +201,6 @@ class Brain:
             return self.memory.handle(args)
         if name == "search_history":
             return self.history.search(args.get("query", ""), args.get("limit", 10), exclude_session=self.session)
+        if name == "set_volume":
+            return settings_mod.apply_volume(self.state, args.get("action", "set"), args.get("level"))
         return f"Error: unknown tool {name}"

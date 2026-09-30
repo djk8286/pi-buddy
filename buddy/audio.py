@@ -137,9 +137,13 @@ class WakeWord:
 class Speaker:
     """Plays int16 audio through aplay and reports loudness so the mouth can move in sync."""
 
-    def __init__(self, state, device=None):
+    def __init__(self, state, device=None, volume=50):
+        from . import settings
         self.state = state
         self.device = _dev(device)
+        # saved setting (changed by voice) wins over config.toml
+        with state.lock:
+            state.volume = int(settings.load().get("volume", volume))
 
     def play(self, pcm: np.ndarray, rate: int, stop_event=None):
         if len(pcm) == 0:
@@ -148,6 +152,9 @@ class Speaker:
             ["aplay", "-q", "-D", self.device, "-t", "raw", "-f", "S16_LE", "-r", str(rate), "-c", "1"],
             stdin=subprocess.PIPE, stderr=subprocess.PIPE,
         )
+        with self.state.lock:
+            gain = (self.state.volume / 100.0) ** 2  # squared so the scale feels even to the ear
+        out_pcm = np.clip(pcm.astype(np.float32) * gain, -32768, 32767).astype(np.int16)
         block = int(rate * 0.03)  # 30 ms
         lead = 0.12               # stay slightly ahead of playback so it never stutters
         start = time.monotonic()
@@ -165,7 +172,7 @@ class Speaker:
                 level = min(1.0, Mic.rms(chunk) / 6000.0)
                 with self.state.lock:
                     self.state.mouth_level = 0.6 * self.state.mouth_level + 0.4 * level
-                proc.stdin.write(chunk.astype(np.int16).tobytes())
+                proc.stdin.write(out_pcm[i:i + block].tobytes())
                 written += len(chunk)
             if proc.poll() is None:
                 proc.stdin.close()

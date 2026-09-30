@@ -111,6 +111,7 @@ Then restart the buddy.
 | File | What it controls |
 |---|---|
 | `config.toml` | name, Claude model, wake word, voice, timings, captions |
+| `data/settings.json` | things it changed itself, like volume ("turn it down") |
 | `personality.md` | how it talks and behaves (edit freely) |
 | `data/memories/` | its long-term memory: plain text files you can read and edit |
 | `data/history.db` | the log of every conversation |

@@ -18,7 +18,8 @@ web_search = true           # lets it look up weather, news, hours, etc. (small 
 wake_word = "hey_jarvis"    # built-in openWakeWord models: hey_jarvis, alexa, hey_mycroft, hey_rhasspy
 wake_threshold = 0.5        # raise if it wakes by accident, lower if it misses you
 whisper_model = "base.en"   # tiny.en = faster, small.en = more accurate but slow on a Pi
-piper_voice = "voices/en_US-lessac-medium.onnx"
+piper_voice = "voices/en_US-joe-medium.onnx"
+volume = 50                 # 0-100. You can also just tell the buddy "turn it down" / "louder"
 follow_up_seconds = 6       # after it answers, listen this long for a reply without the wake word
 silence_seconds = 0.9       # how much quiet ends your sentence
 input_device = ""           # blank = system default; or an ALSA name from `arecord -L`, e.g. "plughw:2,0"

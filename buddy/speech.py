@@ -27,7 +27,7 @@ class Ears:
 
 
 class Voice:
-    def __init__(self, voice_path="voices/en_US-lessac-medium.onnx"):
+    def __init__(self, voice_path="voices/en_US-joe-medium.onnx"):
         from piper import PiperVoice
         path = ROOT / voice_path
         log.info("Loading Piper voice %s ...", path.name)

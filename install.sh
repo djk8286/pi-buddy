@@ -25,7 +25,7 @@ EOF
 
 echo "==> Downloading Piper voice"
 mkdir -p voices
-python -m piper.download_voices en_US-lessac-medium --data-dir voices
+python -m piper.download_voices en_US-joe-medium --data-dir voices
 
 echo "==> Pre-downloading Whisper speech model"
 python -c "from faster_whisper import WhisperModel; WhisperModel('base.en', device='cpu', compute_type='int8')"

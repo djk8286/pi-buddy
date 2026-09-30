@@ -40,8 +40,8 @@ def conversation_loop(cfg, state):
         state.set(caption="Loading ears...")
         ears = Ears(v.get("whisper_model", "base.en"))
         state.set(caption="Loading voice...")
-        voice = Voice(v.get("piper_voice", "voices/en_US-lessac-medium.onnx"))
-        speaker = Speaker(state, v.get("output_device"))
+        voice = Voice(v.get("piper_voice", "voices/en_US-joe-medium.onnx"))
+        speaker = Speaker(state, v.get("output_device"), v.get("volume", 50))
         mic = wait_for_mic(state, v.get("input_device"))
         if mic is None:
             return
