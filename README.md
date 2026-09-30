@@ -79,6 +79,16 @@ The install takes about 10 to 20 minutes. At the end it asks for your Anthropic 
 
 It also starts on its own every time the Pi boots to the desktop.
 
+**Typing mode** (over SSH, or with no mic): same brain and memory, but you type instead of talking.
+
+```bash
+cd ~/pi-buddy && source .venv/bin/activate
+python -m buddy.chat           # replies are printed and spoken
+python -m buddy.chat --quiet   # printed only
+```
+
+With no microphone plugged in, the face shows "Plug in a USB microphone" and keeps checking. Plug one in and it starts listening, with no restart needed.
+
 **Try:**
 
 - "Remember that Hannah's birthday is May 3rd."
@@ -142,6 +152,6 @@ Memory files live only on the Pi. What you say is sent to the Claude API to gene
 | It wakes up by itself | Raise `wake_threshold` to 0.6 or 0.7 |
 | It cuts you off mid-sentence | Raise `silence_seconds` to 1.3 |
 | It waits too long after you stop | Lower `silence_seconds`, or reduce background noise such as the fan near the mic |
-| Wrong mic or speaker | Run `source .venv/bin/activate; python -m sounddevice`, then set `input_device` and `output_device` in `config.toml` |
+| Wrong mic or speaker | Run `arecord -L` / `aplay -L` to list devices, then set `input_device` / `output_device` in `config.toml` (e.g. `plughw:2,0`). Blank = system default |
 | Replies are slow | Use `model = "claude-haiku-4-5-20251001"` and `whisper_model = "tiny.en"` |
 | Screen is sideways | Use Screen Configuration in the Pi desktop menu to rotate it |

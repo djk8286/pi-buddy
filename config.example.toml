@@ -21,7 +21,7 @@ whisper_model = "base.en"   # tiny.en = faster, small.en = more accurate but slo
 piper_voice = "voices/en_US-lessac-medium.onnx"
 follow_up_seconds = 6       # after it answers, listen this long for a reply without the wake word
 silence_seconds = 0.9       # how much quiet ends your sentence
-input_device = ""           # leave blank for default; or a name/number from `python -m sounddevice`
+input_device = ""           # blank = system default; or an ALSA name from `arecord -L`, e.g. "plughw:2,0"
 output_device = ""
 
 [ui]

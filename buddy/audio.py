@@ -1,10 +1,15 @@
-"""Microphone input, wake word, end-of-speech detection, and speaker output."""
+"""Microphone input, wake word, end-of-speech detection, and speaker output.
+
+Audio goes through the Pi's own `arecord` / `aplay` tools (ALSA "default" device, which PipeWire
+handles). Python's PortAudio library can't see PipeWire devices on Pi OS, so we don't use it.
+"""
 import logging
 import queue
+import subprocess
+import threading
 import time
 
 import numpy as np
-import sounddevice as sd
 
 log = logging.getLogger("audio")
 
@@ -13,34 +18,43 @@ BLOCK = 1280  # 80 ms at 16 kHz — the frame size openWakeWord expects
 
 
 def _dev(v):
-    if v in ("", None):
-        return None
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return v
+    return str(v).strip() if v not in ("", None) else "default"
 
 
 class Mic:
-    """Always-on microphone that pushes 80 ms int16 blocks into a queue."""
+    """Always-on microphone (arecord) that pushes 80 ms int16 blocks into a queue."""
 
     def __init__(self, device=None):
         self.q: queue.Queue = queue.Queue(maxsize=200)
         self.noise_floor = 300.0
         self.muted = False
-        self.stream = sd.InputStream(
-            samplerate=RATE, channels=1, dtype="int16", blocksize=BLOCK,
-            device=_dev(device), callback=self._cb,
+        self.proc = subprocess.Popen(
+            ["arecord", "-q", "-D", _dev(device), "-t", "raw", "-f", "S16_LE", "-r", str(RATE), "-c", "1"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
-        self.stream.start()
+        time.sleep(0.6)
+        if self.proc.poll() is not None:  # arecord quit right away = no usable microphone
+            err = self.proc.stderr.read().decode(errors="replace").strip().splitlines()
+            raise RuntimeError(err[-1] if err else "arecord could not open the microphone")
+        threading.Thread(target=self._reader, daemon=True).start()
 
-    def _cb(self, indata, frames, t, status):
-        if self.muted:
-            return
-        try:
-            self.q.put_nowait(indata[:, 0].copy())
-        except queue.Full:
-            pass
+    def _reader(self):
+        nbytes = BLOCK * 2
+        while True:
+            data = self.proc.stdout.read(nbytes)
+            if not data or len(data) < nbytes:
+                log.warning("Microphone stream ended")
+                return
+            if self.muted:
+                continue
+            try:
+                self.q.put_nowait(np.frombuffer(data, dtype=np.int16).copy())
+            except queue.Full:
+                pass
+
+    def close(self):
+        if self.proc.poll() is None:
+            self.proc.terminate()
 
     def read(self, timeout=0.5):
         try:
@@ -121,25 +135,53 @@ class WakeWord:
 
 
 class Speaker:
-    """Plays int16 audio and reports loudness so the mouth can move."""
+    """Plays int16 audio through aplay and reports loudness so the mouth can move in sync."""
 
     def __init__(self, state, device=None):
         self.state = state
         self.device = _dev(device)
 
     def play(self, pcm: np.ndarray, rate: int, stop_event=None):
-        block = int(rate * 0.03)  # 30 ms blocks
-        with sd.OutputStream(samplerate=rate, channels=1, dtype="int16", device=self.device) as out:
+        if len(pcm) == 0:
+            return
+        proc = subprocess.Popen(
+            ["aplay", "-q", "-D", self.device, "-t", "raw", "-f", "S16_LE", "-r", str(rate), "-c", "1"],
+            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        block = int(rate * 0.03)  # 30 ms
+        lead = 0.12               # stay slightly ahead of playback so it never stutters
+        start = time.monotonic()
+        written = 0
+        try:
             for i in range(0, len(pcm), block):
                 if stop_event is not None and stop_event.is_set():
+                    proc.kill()
                     break
                 chunk = pcm[i:i + block]
+                # pace writes to real time so the mouth matches what you hear
+                ahead = start + written / rate - time.monotonic()
+                if ahead > lead:
+                    time.sleep(ahead - lead)
                 level = min(1.0, Mic.rms(chunk) / 6000.0)
                 with self.state.lock:
                     self.state.mouth_level = 0.6 * self.state.mouth_level + 0.4 * level
-                out.write(chunk.reshape(-1, 1))
-        with self.state.lock:
-            self.state.mouth_level = 0.0
+                proc.stdin.write(chunk.astype(np.int16).tobytes())
+                written += len(chunk)
+            if proc.poll() is None:
+                proc.stdin.close()
+                proc.wait(timeout=10)
+        except (BrokenPipeError, subprocess.TimeoutExpired):
+            err = proc.stderr.read().decode(errors="replace").strip() if proc.stderr else ""
+            if proc.poll() is None:
+                proc.kill()
+            if err:
+                raise RuntimeError(f"aplay failed: {err}")
+        finally:
+            with self.state.lock:
+                self.state.mouth_level = 0.0
+        if proc.returncode not in (0, None, -9):
+            err = proc.stderr.read().decode(errors="replace").strip()
+            raise RuntimeError(f"aplay failed: {err or proc.returncode}")
 
     def chime(self, kind="wake"):
         """Short beep so you know it's listening (wake) or done (done)."""
@@ -151,6 +193,6 @@ class Speaker:
             env = np.minimum(1, np.minimum(t, 0.08 - t) * 60)
             parts.append((np.sin(2 * np.pi * f * t) * env * 6000).astype(np.int16))
         try:
-            sd.play(np.concatenate(parts), rate, device=self.device, blocking=True)
+            self.play(np.concatenate(parts), rate)
         except Exception as e:
             log.debug("chime failed: %s", e)

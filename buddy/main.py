@@ -14,7 +14,6 @@ log = logging.getLogger("main")
 def wait_for_mic(state, device):
     """Open the microphone. If none is plugged in, show a friendly message and keep
     checking every few seconds, so plugging in a USB mic just works (no restart needed)."""
-    import sounddevice as sd
     from .audio import Mic
     warned = False
     while not state.quit_event.is_set():
@@ -26,11 +25,6 @@ def wait_for_mic(state, device):
                 state.set(mode="error", mood="sad", caption="I can't hear anything. Plug in a USB microphone.")
                 warned = True
             time.sleep(4)
-            try:  # re-scan audio devices so a newly plugged-in mic shows up
-                sd._terminate()
-                sd._initialize()
-            except Exception:
-                pass
     return None
 
 
