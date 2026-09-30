@@ -79,7 +79,7 @@ The install takes about 10 to 20 minutes. At the end it asks for your Anthropic 
 
 It also starts on its own every time the Pi boots to the desktop.
 
-**Typing mode** (over SSH, or with no mic): same brain and memory, but you type instead of talking.
+**Typing mode** (over SSH, or with no mic): same brain and memory, but you type instead of talking. If the face is running, your messages go to it, so the face reacts and it speaks.
 
 ```bash
 cd ~/pi-buddy && source .venv/bin/activate

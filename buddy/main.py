@@ -28,6 +28,59 @@ def wait_for_mic(state, device):
     return None
 
 
+BRAIN_LOCK = threading.Lock()
+SOCKET_PATH = DATA / "buddy.sock"
+
+
+def locked_respond(brain, text):
+    with BRAIN_LOCK:
+        brain.respond(text)
+
+
+def start_text_server(brain, mouth, state):
+    """Lets `python -m buddy.chat` send typed messages to this running buddy (face reacts,
+    one owner of the speakers). Protocol: one line in; reply sentences out, then a blank line."""
+    import socketserver
+
+    class Handler(socketserver.StreamRequestHandler):
+        def handle(self):
+            for raw in self.rfile:
+                text = raw.decode(errors="replace").strip()
+                if not text:
+                    continue
+                def send(mood, sentence, w=self.wfile):
+                    try:
+                        w.write((sentence.replace("\n", " ") + "\n").encode())
+                        w.flush()
+                    except OSError:
+                        pass
+                with BRAIN_LOCK:
+                    prev_mode, prev_mood, _, prev_caption, _ = state.snapshot()
+                    state.set(caption=f'"{text}"')
+                    mouth.listeners.append(send)
+                    try:
+                        brain.respond(text)
+                    finally:
+                        mouth.listeners.remove(send)
+                        if prev_mode == "error":  # e.g. still waiting for a mic: put that message back
+                            state.set(mode=prev_mode, mood=prev_mood, caption=prev_caption)
+                        else:
+                            state.set(mode="idle")
+                try:
+                    self.wfile.write(b"\n")
+                    self.wfile.flush()
+                except OSError:
+                    return
+
+    try:
+        SOCKET_PATH.unlink(missing_ok=True)
+        server = socketserver.ThreadingUnixStreamServer(str(SOCKET_PATH), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        log.info("Typing mode available: python -m buddy.chat")
+    except Exception as e:
+        log.warning("Text server not started: %s", e)
+
+
 def conversation_loop(cfg, state):
     from .audio import Mic, Speaker, WakeWord
     from .brain import Brain, Mouth
@@ -42,13 +95,14 @@ def conversation_loop(cfg, state):
         state.set(caption="Loading voice...")
         voice = Voice(v.get("piper_voice", "voices/en_US-joe-medium.onnx"))
         speaker = Speaker(state, v.get("output_device"), v.get("volume", 50))
+        mouth = Mouth(state, voice, speaker)
+        mouth.start()
+        brain = Brain(cfg, state, mouth)
+        start_text_server(brain, mouth, state)  # typing mode can talk to us even before a mic exists
         mic = wait_for_mic(state, v.get("input_device"))
         if mic is None:
             return
         wake = WakeWord(v.get("wake_word", "hey_jarvis"), float(v.get("wake_threshold", 0.5)))
-        mouth = Mouth(state, voice, speaker)
-        mouth.start()
-        brain = Brain(cfg, state, mouth)
     except Exception as e:
         log.exception("Startup failed")
         state.set(mode="error", mood="sad", caption=f"Startup error: {e}")
@@ -106,7 +160,7 @@ def conversation_loop(cfg, state):
         # ----- think + speak (tap while it's talking to interrupt) -----
         mic.muted = True  # don't listen to ourselves
         state.tap_event.clear()
-        worker = threading.Thread(target=brain.respond, args=(text,), daemon=True)
+        worker = threading.Thread(target=locked_respond, args=(brain, text), daemon=True)
         worker.start()
         while worker.is_alive():
             if state.tap_event.is_set():

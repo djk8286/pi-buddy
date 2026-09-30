@@ -61,8 +61,11 @@ class Mouth(threading.Thread):
         self.state, self.voice, self.speaker = state, voice, speaker
         self.q: queue.Queue = queue.Queue()
         self.stop_event = threading.Event()
+        self.listeners = []
 
     def say(self, mood, text):
+        for fn in list(self.listeners):  # e.g. typing-mode clients that want the text too
+            fn(mood, text)
         self.q.put((mood, text))
 
     def wait(self):
