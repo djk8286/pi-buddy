@@ -29,6 +29,19 @@ MOOD_SHAPES = {
 }
 
 
+def pick_display(pref="auto"):
+    """The case's HDMI audio chip pretends to be a 1280x720 monitor, so 'auto' picks the
+    smallest screen: the built-in 800x480 touchscreen."""
+    try:
+        sizes = pygame.display.get_desktop_sizes()
+    except Exception:
+        return 0
+    print(f"Screens found: {sizes}", flush=True)
+    if isinstance(pref, int):
+        return pref if 0 <= pref < len(sizes) else 0
+    return min(range(len(sizes)), key=lambda i: sizes[i][0] * sizes[i][1])
+
+
 def lerp(a, b, t):
     return a + (b - a) * t
 
@@ -44,7 +57,7 @@ class Face:
         pygame.mouse.set_visible(False)
         flags = pygame.FULLSCREEN if cfg["ui"].get("fullscreen", True) else 0
         size = (0, 0) if flags else (800, 480)
-        self.screen = pygame.display.set_mode(size, flags)
+        self.screen = pygame.display.set_mode(size, flags, display=pick_display(cfg["ui"].get("display", "auto")))
         pygame.display.set_caption(cfg["buddy"]["name"])
         self.W, self.H = self.screen.get_size()
         self.u = min(self.W, self.H * 1.6)  # base unit that keeps proportions on any screen
