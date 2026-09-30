@@ -1,0 +1,31 @@
+# Copy this file to config.toml and edit. config.toml is not committed to git.
+
+[buddy]
+name = "Pixel"              # what the buddy calls itself
+user_name = "Dave"          # who it mostly talks to
+timezone = "America/Los_Angeles"
+
+[claude]
+# claude-sonnet-5 is a good balance of speed and smarts for voice.
+# claude-haiku-4-5-20251001 is faster and cheaper; claude-opus-5-5 is smartest but slower.
+model = "claude-sonnet-5"
+max_tokens = 1024
+history_turns = 20          # how many recent messages to keep in the live conversation
+session_timeout_min = 10    # after this much silence a new conversation starts (memory persists)
+web_search = true           # lets it look up weather, news, hours, etc. (small extra cost per search)
+
+[voice]
+wake_word = "hey_jarvis"    # built-in openWakeWord models: hey_jarvis, alexa, hey_mycroft, hey_rhasspy
+wake_threshold = 0.5        # raise if it wakes by accident, lower if it misses you
+whisper_model = "base.en"   # tiny.en = faster, small.en = more accurate but slow on a Pi
+piper_voice = "voices/en_US-lessac-medium.onnx"
+follow_up_seconds = 6       # after it answers, listen this long for a reply without the wake word
+silence_seconds = 0.9       # how much quiet ends your sentence
+input_device = ""           # leave blank for default; or a name/number from `python -m sounddevice`
+output_device = ""
+
+[ui]
+fullscreen = true
+show_captions = true
+fps = 30
+sleep_after_min = 15        # face gets sleepy after this long with no interaction

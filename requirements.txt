@@ -1,0 +1,12 @@
+anthropic>=0.70
+numpy
+sounddevice
+pygame-ce
+faster-whisper
+piper-tts
+# openWakeWord is installed separately by install.sh (it needs --no-deps on newer Python)
+onnxruntime
+scipy
+scikit-learn
+tqdm
+requests
