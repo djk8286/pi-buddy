@@ -86,7 +86,7 @@ class Mouth(threading.Thread):
                     pcm, rate = self.voice.synth(text)
                     self.speaker.play(pcm, rate, stop_event=self.stop_event)
             except Exception as e:
-                log.exception("speech failed: %s", e)
+                log.error("speech failed: %s", e)
             finally:
                 self.q.task_done()
 

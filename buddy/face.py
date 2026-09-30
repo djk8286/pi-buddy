@@ -53,7 +53,9 @@ def lerp_color(a, b, t):
 class Face:
     def __init__(self, state, cfg):
         self.state, self.cfg = state, cfg
-        pygame.init()
+        # Only video + fonts. Plain pygame.init() would also open the sound card and block our speech.
+        pygame.display.init()
+        pygame.font.init()
         pygame.mouse.set_visible(False)
         flags = pygame.FULLSCREEN if cfg["ui"].get("fullscreen", True) else 0
         size = (0, 0) if flags else (800, 480)

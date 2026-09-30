@@ -17,8 +17,23 @@ RATE = 16000
 BLOCK = 1280  # 80 ms at 16 kHz — the frame size openWakeWord expects
 
 
+_AUTO_DEV = None
+
+
 def _dev(v):
-    return str(v).strip() if v not in ("", None) else "default"
+    """Device for aplay/arecord. Blank config = PipeWire if available (lets several programs share
+    the speakers), otherwise ALSA 'default'."""
+    global _AUTO_DEV
+    if v not in ("", None):
+        return str(v).strip()
+    if _AUTO_DEV is None:
+        try:
+            names = subprocess.run(["aplay", "-L"], capture_output=True, text=True, timeout=5).stdout.split()
+            _AUTO_DEV = "pipewire" if "pipewire" in names else "default"
+        except Exception:
+            _AUTO_DEV = "default"
+        log.info("Audio device: %s", _AUTO_DEV)
+    return _AUTO_DEV
 
 
 class Mic:
@@ -177,10 +192,19 @@ class Speaker:
             if proc.poll() is None:
                 proc.stdin.close()
                 proc.wait(timeout=10)
+            else:
+                try:
+                    proc.stdin.close()
+                except BrokenPipeError:
+                    pass
         except (BrokenPipeError, subprocess.TimeoutExpired):
             err = proc.stderr.read().decode(errors="replace").strip() if proc.stderr else ""
             if proc.poll() is None:
                 proc.kill()
+            try:
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
             if err:
                 raise RuntimeError(f"aplay failed: {err}")
         finally:
