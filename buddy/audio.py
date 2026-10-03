@@ -37,6 +37,16 @@ def _dev(v):
     return _AUTO_DEV
 
 
+def _capture_cards():
+    """ALSA names for every recording device, from `arecord -l` (e.g. ['plughw:2,0'])."""
+    import re
+    try:
+        out = subprocess.run(["arecord", "-l"], capture_output=True, text=True, timeout=5).stdout
+    except Exception:
+        return []
+    return [f"plughw:{c},{d}" for c, d in re.findall(r"card (\d+):.*?device (\d+):", out)]
+
+
 class Mic:
     """Always-on microphone (arecord) that pushes 80 ms int16 blocks into a queue."""
 
@@ -44,14 +54,27 @@ class Mic:
         self.q: queue.Queue = queue.Queue(maxsize=200)
         self.noise_floor = 300.0
         self.muted = False
-        self.proc = subprocess.Popen(
-            ["arecord", "-q", "-D", _dev(device), "-t", "raw", "-f", "S16_LE", "-r", str(RATE), "-c", "1"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        time.sleep(0.6)
-        if self.proc.poll() is not None:  # arecord quit right away = no usable microphone
-            err = self.proc.stderr.read().decode(errors="replace").strip().splitlines()
-            raise RuntimeError(err[-1] if err else "arecord could not open the microphone")
+        # Pi OS's ALSA "default" often has no recording side, so when no device is configured we
+        # also try every capture card that `arecord -l` lists (e.g. a USB mic as plughw:2,0).
+        if device not in ("", None):
+            candidates = [str(device).strip()]
+        else:
+            candidates = ["default"] + _capture_cards()
+        errors = []
+        for dev in candidates:
+            proc = subprocess.Popen(
+                ["arecord", "-q", "-D", dev, "-t", "raw", "-f", "S16_LE", "-r", str(RATE), "-c", "1"],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+            time.sleep(0.6)
+            if proc.poll() is None:
+                self.proc, self.device = proc, dev
+                log.info("Microphone open on '%s'", dev)
+                break
+            err = proc.stderr.read().decode(errors="replace").strip().splitlines()
+            errors.append(f"{dev}: {err[-1] if err else 'failed'}")
+        else:
+            raise RuntimeError("; ".join(errors) or "no microphone found")
         threading.Thread(target=self._reader, daemon=True).start()
 
     def _reader(self):
