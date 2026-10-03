@@ -53,6 +53,7 @@ class Mic:
     def __init__(self, device=None):
         self.q: queue.Queue = queue.Queue(maxsize=200)
         self.noise_floor = 300.0
+        self.idle_levels = collections.deque(maxlen=60)  # ~5 s of idle loudness readings
         self.muted = False
         # Pi OS's ALSA "default" often has no recording side, so when no device is configured we
         # also try every capture card that `arecord -l` lists (e.g. a USB mic as plughw:2,0).
@@ -113,32 +114,51 @@ class Mic:
         return float(np.sqrt(np.mean(block.astype(np.float32) ** 2))) if len(block) else 0.0
 
     def track_noise(self, block):
-        # slow-moving average of background noise, used for the speech threshold
-        self.noise_floor = 0.95 * self.noise_floor + 0.05 * self.rms(block)
+        """Background noise = a low percentile of the last ~5 s of idle audio, so speech (like the
+        wake word itself) can't inflate it. Used to tell talking apart from silence."""
+        self.idle_levels.append(self.rms(block))
+        if len(self.idle_levels) >= 10:
+            self.noise_floor = float(np.percentile(self.idle_levels, 20))
 
-    def record_utterance(self, silence_s=0.9, wait_s=5.0, max_s=20.0, stop_event=None):
-        """Record until the speaker goes quiet. Returns float32 audio, or None if nobody spoke."""
-        threshold = max(self.noise_floor * 3.0, 500.0)
+    def record_utterance(self, silence_s=1.2, wait_s=5.0, max_s=30.0, stop_event=None):
+        """Record until the speaker goes quiet. Returns float32 audio, or None if nobody spoke.
+
+        Hysteresis: a clear sound is needed to START, but once you're talking a much quieter level
+        still counts as talking, and levels are smoothed over ~240 ms so gaps between words don't end it."""
+        noise = max(self.noise_floor, 50.0)
+        start_thr = max(noise * 3.0, 400.0)
+        keep_thr = max(noise * 1.6, 200.0)
         frames, started, quiet, t0 = [], False, 0.0, time.time()
+        recent = collections.deque(maxlen=3)
         blk_s = BLOCK / RATE
+        peak = 0.0
+        reason = "silence"
         while True:
             if stop_event is not None and stop_event.is_set():
                 return None
             b = self.read(timeout=1.0)
             if b is None:
                 continue
-            loud = self.rms(b) > threshold
+            level = self.rms(b)
+            recent.append(level)
             if not started:
                 frames = (frames + [b])[-4:]  # keep ~300 ms of pre-roll so first word isn't clipped
-                if loud:
+                if level > start_thr:
                     started = True
                 elif time.time() - t0 > wait_s:
                     return None
                 continue
             frames.append(b)
-            quiet = 0.0 if loud else quiet + blk_s
-            if quiet >= silence_s or len(frames) * blk_s >= max_s:
+            peak = max(peak, level)
+            smooth = sum(recent) / len(recent)
+            quiet = 0.0 if smooth > keep_thr else quiet + blk_s
+            if quiet >= silence_s:
                 break
+            if len(frames) * blk_s >= max_s:
+                reason = "max length"
+                break
+        log.info("Heard %.1fs of speech (ended by %s). noise=%.0f start=%.0f keep=%.0f peak=%.0f",
+                 len(frames) * blk_s, reason, noise, start_thr, keep_thr, peak)
         audio = np.concatenate(frames).astype(np.float32) / 32768.0
         return audio
 

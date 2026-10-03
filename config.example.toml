@@ -18,12 +18,13 @@ web_search = true           # lets it look up weather, news, hours, etc. (small 
 wake_word = "hey_jarvis"    # built-in: hey_jarvis, alexa, hey_mycroft, hey_rhasspy
                             # or your own trained model file, e.g. "models/hey_tars.onnx"
 wake_phrase = ""            # what the screen tells you to say, e.g. "Hey TARS" (blank = from wake_word)
+wake_reject = []            # ignore wake-ups that contain these words, e.g. ["jarvis"] (adds ~0.5 s check)
 wake_threshold = 0.5        # raise if it wakes by accident, lower if it misses you
 whisper_model = "base.en"   # tiny.en = faster, small.en = more accurate but slow on a Pi
 piper_voice = "voices/en_US-joe-medium.onnx"
 volume = 50                 # 0-100. You can also just tell the buddy "turn it down" / "louder"
 follow_up_seconds = 6       # after it answers, listen this long for a reply without the wake word
-silence_seconds = 0.9       # how much quiet ends your sentence
+silence_seconds = 1.2       # how long a pause ends your sentence (raise if it cuts you off)
 input_device = ""           # blank = system default; or an ALSA name from `arecord -L`, e.g. "plughw:2,0"
 output_device = ""
 

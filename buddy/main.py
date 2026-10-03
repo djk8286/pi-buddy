@@ -1,4 +1,5 @@
 """Entry point: face in the main thread, listening/thinking loop in a worker thread."""
+import collections
 import logging
 import os
 import sys
@@ -81,6 +82,20 @@ def start_text_server(brain, mouth, state):
         log.warning("Text server not started: %s", e)
 
 
+def wake_rejected(ears, blocks, reject_words) -> bool:
+    """Second check after the wake word fires: transcribe the last ~2 s and ignore the wake-up if it
+    contains a word we don't answer to (e.g. 'jarvis' when the buddy is called TARS)."""
+    import numpy as np
+    audio = np.concatenate(list(blocks)).astype(np.float32) / 32768.0
+    text = ears.transcribe(audio).lower()
+    hit = next((w for w in reject_words if w in text), None)
+    if hit:
+        log.info("Ignored wake-up: heard %r (contains %r)", text, hit)
+    else:
+        log.info("Wake-up confirmed: heard %r", text)
+    return hit is not None
+
+
 def conversation_loop(cfg, state):
     from .audio import Mic, Speaker, WakeWord
     from .brain import Brain, Mouth
@@ -113,6 +128,7 @@ def conversation_loop(cfg, state):
     state.set(mode="idle", mood="happy", caption=how)
     log.info("Ready. %s", how)
     follow_up_until = 0.0
+    reject_words = [w.lower() for w in v.get("wake_reject", [])]
 
     while not state.quit_event.is_set():
         # ----- wait for wake word, a tap, or a follow-up reply -----
@@ -122,6 +138,7 @@ def conversation_loop(cfg, state):
         else:
             state.set(mode="idle")
             wake.reset()
+            recent = collections.deque(maxlen=25)  # last ~2 s of audio, to double-check the wake word
             while not state.quit_event.is_set():
                 if state.tap_event.is_set():
                     state.tap_event.clear()
@@ -130,7 +147,12 @@ def conversation_loop(cfg, state):
                 block = mic.read(timeout=0.2)
                 if block is None:
                     continue
+                recent.append(block)
                 if wake.heard(block):
+                    if reject_words and wake_rejected(ears, recent, reject_words):
+                        wake.reset()
+                        recent.clear()
+                        continue
                     triggered = True
                     break
                 mic.track_noise(block)
@@ -143,7 +165,7 @@ def conversation_loop(cfg, state):
         # ----- record what the user says -----
         state.set(mode="listening", mood="curious")
         wait_s = float(v.get("follow_up_seconds", 6)) if follow_up_until else 6.0
-        audio = mic.record_utterance(silence_s=float(v.get("silence_seconds", 0.9)), wait_s=wait_s,
+        audio = mic.record_utterance(silence_s=float(v.get("silence_seconds", 1.2)), wait_s=wait_s,
                                      stop_event=state.quit_event)
         follow_up_until = 0.0
         if audio is None:
