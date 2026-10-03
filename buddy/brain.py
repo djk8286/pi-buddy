@@ -14,6 +14,7 @@ import anthropic
 from . import history as history_mod
 from . import memory as memory_mod
 from . import settings as settings_mod
+from . import camera as camera_mod
 from .config import load_personality
 from .speech import clean_for_speech
 from .state import MOODS
@@ -111,6 +112,9 @@ class Brain:
         self.timeout = float(c.get("session_timeout_min", 10)) * 60
         self.tz = ZoneInfo(cfg["buddy"].get("timezone", "UTC"))
         self.tools = [memory_mod.TOOL_SPEC, history_mod.TOOL_SPEC, settings_mod.VOLUME_TOOL]
+        self.camera = camera_mod.Camera(cfg)
+        if self.camera.enabled:
+            self.tools.append(camera_mod.TOOL_SPEC)
         if c.get("web_search", True):
             self.tools.append(WEB_SEARCH_TOOL)
 
@@ -126,11 +130,26 @@ class Brain:
         ) + (
             "\nOTHER TOOLS\n- search_history: search older conversations.\n"
             "- set_volume: make your voice louder or quieter when asked.\n"
+            "- look: take a photo with your camera when asked what you see or to look at something. "
+            "Describe what matters briefly and naturally; don't list every object.\n"
             "- web_search (if available): current info like weather, news, hours, prices. "
             "Summarize results in a sentence or two; never read URLs aloud.\n"
         )
         self.system = [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
         log.info("New session %s (memory preloaded, %d chars)", self.session, len(text))
+
+    def _forget_old_photos(self):
+        """Photos are large, so only the most recent one stays in the conversation."""
+        spots = []
+        for m in self.messages:
+            if isinstance(m["content"], list):
+                for block in m["content"]:
+                    if isinstance(block, dict) and block.get("type") == "tool_result" and isinstance(block.get("content"), list):
+                        for i, part in enumerate(block["content"]):
+                            if part.get("type") == "image":
+                                spots.append((block, i))
+        for block, i in spots[:-1]:
+            block["content"][i] = {"type": "text", "text": "[an earlier photo; take a new one if you need to see again]"}
 
     def _trim(self):
         # keep the tail, but always start on a plain user message (never split tool_use/tool_result pairs)
@@ -147,12 +166,14 @@ class Brain:
         self.history.add(self.session, "user", user_text)
         self.messages.append({"role": "user", "content": f"[{self._now()}] {user_text}"})
         self._trim()
+        self._forget_old_photos()
 
         self.mouth.stop_event.clear()
         spoken = []
         turn_start = len(self.messages) - 1
         try:
             for _ in range(8):  # max tool rounds
+                self._forget_old_photos()
                 splitter = SentenceStream()
                 self.state.set(mode="thinking")
                 with self.client.messages.stream(
@@ -204,6 +225,8 @@ class Brain:
             return self.memory.handle(args)
         if name == "search_history":
             return self.history.search(args.get("query", ""), args.get("limit", 10), exclude_session=self.session)
+        if name == "look":
+            return self.camera.tool_result(self.state, args)
         if name == "set_volume":
             return settings_mod.apply_volume(self.state, args.get("action", "set"), args.get("level"))
         return f"Error: unknown tool {name}"
