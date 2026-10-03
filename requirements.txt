@@ -10,3 +10,4 @@ scipy
 scikit-learn
 tqdm
 requests
+luma.oled

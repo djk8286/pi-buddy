@@ -189,6 +189,8 @@ def main():
 
     state = BuddyState()
     face = Face(state, cfg)
+    from .oled import OledPanel
+    OledPanel(state, cfg).start()  # the case's little status screen (skips itself if absent)
     threading.Thread(target=conversation_loop, args=(cfg, state), daemon=True).start()
     face.run()
 
