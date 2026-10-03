@@ -42,3 +42,8 @@ height = 960
 enabled = true              # the case's little 0.96" status screen (clock when idle, mini eyes when active)
 rotation = 0                # 180 if it shows upside down
 dim_after_min = 10          # dims after this long idle, to prevent burn-in
+
+[lights]
+enabled = true              # the case's 4 RGB lights react to what the buddy is doing
+brightness = 60             # 0-100 (or just say "dim your lights" / "turn off your lights")
+off_after_min = 15          # lights go off after this long idle

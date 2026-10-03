@@ -83,6 +83,8 @@ It also starts on its own every time the Pi boots to the desktop.
 
 **Small screen (OLED):** shows a clock, date and CPU temperature while idle, and mini eyes with "Listening… / Thinking… / Speaking" while active. It dims after 10 idle minutes to prevent burn-in. Settings are under `[oled]` in `config.toml`.
 
+**Case lights:** the 4 RGB lights show what it's doing: soft cyan breathing when idle, a blue pulse when listening, purple chasing while thinking, the mood color pulsing with the voice while speaking, white for a photo, and amber for a problem. Say "turn off your lights" or "dim your lights", or change `[lights]` in `config.toml`. The fans are never touched.
+
 **Typing mode** (over SSH, or with no mic): same brain and memory, but you type instead of talking. If the face is running, your messages go to it, so the face reacts and it speaks.
 
 ```bash

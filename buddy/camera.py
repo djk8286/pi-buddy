@@ -63,6 +63,8 @@ class Camera:
         """Returns tool_result content: the photo plus a short text note."""
         if not self.enabled:
             return "The camera is turned off in config.toml."
+        import time
+        state.flash_time = time.time()
         state.flash.set()  # shutter flash on the face
         state.set(mood="curious", caption="Looking...")
         try:

@@ -11,3 +11,4 @@ scikit-learn
 tqdm
 requests
 luma.oled
+smbus2
