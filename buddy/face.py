@@ -227,8 +227,7 @@ class Face:
         if self.show_captions and caption and mode in ("speaking", "thinking", "booting", "error"):
             self.draw_caption(caption)
 
-    def draw_caption(self, text):
-        max_w = self.W * 0.9
+    def _wrap(self, text, max_w):
         words, lines, line = text.split(), [], ""
         for w in words:
             test = (line + " " + w).strip()
@@ -237,12 +236,43 @@ class Face:
                 line = w
             else:
                 line = test
-        lines.append(line)
-        lines = lines[-2:]
+        if line:
+            lines.append(line)
+        return lines
+
+    def draw_caption(self, text):
+        """Subtitles: the sentence is split into 2-line pages. While speaking, pages advance in time
+        with the voice (weighted by how many letters each page has); otherwise they rotate slowly."""
+        lines = self._wrap(text, self.W * 0.92)
+        if not lines:
+            return
+        pages = [lines[i:i + 2] for i in range(0, len(lines), 2)]
+        start, dur = self.state.caption_timing()
+        if len(pages) == 1:
+            page = pages[0]
+        elif dur > 0:
+            progress = max(0.0, (time.time() - start) / dur)
+            sizes = [sum(len(l) for l in p) for p in pages]
+            total, acc, idx = sum(sizes), 0, len(pages) - 1
+            for i, n in enumerate(sizes):
+                acc += n
+                if progress < acc / total:
+                    idx = i
+                    break
+            page = pages[idx]
+        else:
+            page = pages[int(time.time() / 3.0) % len(pages)]
         lh = self.font.get_linesize()
-        y = self.H - lh * len(lines) - self.H * 0.02
-        for ln in lines:
-            surf = self.font.render(ln, True, (200, 210, 225))
+        pad = int(self.H * 0.02)
+        band_h = lh * 2 + pad * 2  # always room for 2 lines so the band doesn't jump around
+        band = pygame.Surface((self.W, band_h))
+        band.fill((0, 0, 0))
+        band.set_alpha(190)
+        top = self.H - band_h
+        self.screen.blit(band, (0, top))
+        y = top + pad + (lh * (2 - len(page))) // 2
+        for ln in page:
+            surf = self.font.render(ln, True, (225, 232, 245))
             self.screen.blit(surf, ((self.W - surf.get_width()) / 2, y))
             y += lh
 

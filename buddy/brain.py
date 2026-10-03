@@ -86,8 +86,8 @@ class Mouth(threading.Thread):
             mood, text = self.q.get()
             try:
                 if not self.stop_event.is_set():
-                    self.state.set(mode="speaking", mood=mood, caption=text)
                     pcm, rate = self.voice.synth(text)
+                    self.state.set_spoken_caption(text, mood, len(pcm) / rate)
                     self.speaker.play(pcm, rate, stop_event=self.stop_event)
             except Exception as e:
                 log.error("speech failed: %s", e)
