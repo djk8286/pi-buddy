@@ -79,6 +79,8 @@ The install takes about 10 to 20 minutes. At the end it asks for your Anthropic 
 
 It also starts on its own every time the Pi boots to the desktop.
 
+**Camera:** ask *"What do you see?"*, *"What's this?"* or *"Read this label."* The screen flashes white, it takes one photo, and Claude looks at it. Photos are never saved; only the most recent one stays in the conversation. If pictures come out upside down, set `rotation = 180` under `[camera]` in `config.toml`, or set `enabled = false` to turn the camera off.
+
 **Typing mode** (over SSH, or with no mic): same brain and memory, but you type instead of talking. If the face is running, your messages go to it, so the face reacts and it speaks.
 
 ```bash

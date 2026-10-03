@@ -31,3 +31,9 @@ display = "auto"            # "auto" = the built-in touchscreen; or a number (0,
 show_captions = true
 fps = 30
 sleep_after_min = 15        # face gets sleepy after this long with no interaction
+
+[camera]
+enabled = true              # lets the buddy take a photo when you ask "what do you see?"
+rotation = 0                # set to 180 if photos come out upside down
+width = 1280
+height = 960

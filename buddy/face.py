@@ -80,6 +80,7 @@ class Face:
         self.mouth = 0.0
         self.t0 = time.time()
         self.press_start = None
+        self.flash_t = 0.0
 
     # ---------- input ----------
     def handle_events(self):
@@ -257,5 +258,14 @@ class Face:
             self.draw_eye(self.W / 2 + gap, eye_y, side=+1)
             self.draw_mouth(mode, mood)
             self.draw_extras(mode, mood, caption)
+            if self.state.flash.is_set():  # camera shutter
+                self.state.flash.clear()
+                self.flash_t = 0.3
+            if self.flash_t > 0:
+                overlay = pygame.Surface((self.W, self.H))
+                overlay.fill((255, 255, 255))
+                overlay.set_alpha(int(255 * min(1.0, self.flash_t / 0.3)))
+                self.screen.blit(overlay, (0, 0))
+                self.flash_t -= dt
             pygame.display.flip()
         pygame.quit()

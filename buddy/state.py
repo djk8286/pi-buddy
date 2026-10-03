@@ -17,6 +17,7 @@ class BuddyState:
         self.last_interaction = time.time()
         self.tap_event = threading.Event()
         self.quit_event = threading.Event()
+        self.flash = threading.Event()  # camera shutter flash on the face
 
     def set(self, mode=None, mood=None, caption=None):
         with self.lock:
