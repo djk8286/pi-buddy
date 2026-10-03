@@ -1,7 +1,7 @@
 # Copy this file to config.toml and edit. config.toml is not committed to git.
 
 [buddy]
-name = "Pixel"              # what the buddy calls itself
+name = "TARS"               # what the buddy calls itself
 user_name = "Dave"          # who it mostly talks to
 timezone = "America/Los_Angeles"
 
@@ -15,7 +15,9 @@ session_timeout_min = 10    # after this much silence a new conversation starts 
 web_search = true           # lets it look up weather, news, hours, etc. (small extra cost per search)
 
 [voice]
-wake_word = "hey_jarvis"    # built-in openWakeWord models: hey_jarvis, alexa, hey_mycroft, hey_rhasspy
+wake_word = "hey_jarvis"    # built-in: hey_jarvis, alexa, hey_mycroft, hey_rhasspy
+                            # or your own trained model file, e.g. "models/hey_tars.onnx"
+wake_phrase = ""            # what the screen tells you to say, e.g. "Hey TARS" (blank = from wake_word)
 wake_threshold = 0.5        # raise if it wakes by accident, lower if it misses you
 whisper_model = "base.en"   # tiny.en = faster, small.en = more accurate but slow on a Pi
 piper_voice = "voices/en_US-joe-medium.onnx"

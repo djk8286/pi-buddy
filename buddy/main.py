@@ -108,7 +108,8 @@ def conversation_loop(cfg, state):
         state.set(mode="error", mood="sad", caption=f"Startup error: {e}")
         return
 
-    how = f'Say "{v.get("wake_word", "hey_jarvis").replace("_", " ")}" or tap me' if wake.available else "Tap me to talk"
+    phrase = v.get("wake_phrase") or str(v.get("wake_word", "hey_jarvis")).rsplit("/", 1)[-1].replace(".onnx", "").replace("_", " ").title()
+    how = f'Say "{phrase}" or tap me' if wake.available else "Tap me to talk"
     state.set(mode="idle", mood="happy", caption=how)
     log.info("Ready. %s", how)
     follow_up_until = 0.0

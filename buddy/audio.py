@@ -152,11 +152,16 @@ class WakeWord:
         try:
             import openwakeword
             from openwakeword.model import Model
+            from .config import ROOT
+            custom = str(name).endswith(".onnx")  # your own trained model, e.g. models/hey_tars.onnx
             try:
-                openwakeword.utils.download_models([name])
+                openwakeword.utils.download_models([] if custom else [name])
             except Exception as e:  # already downloaded or offline
                 log.debug("wake word download skipped: %s", e)
-            self.model = Model(wakeword_models=[name], inference_framework="onnx")
+            model_ref = str((ROOT / name).resolve()) if custom else name
+            if custom and not (ROOT / name).exists():
+                raise FileNotFoundError(f"custom wake word model not found: {name}")
+            self.model = Model(wakeword_models=[model_ref], inference_framework="onnx")
             self.available = True
             log.info("Wake word '%s' ready", name)
         except Exception as e:
